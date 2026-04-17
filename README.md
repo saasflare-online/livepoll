@@ -1,87 +1,53 @@
-# 🗳️ LivePoll - Decentralized Voting on Stellar
+# LivePoll: Decentralized Voting on Stellar
 
-[![Next.js 16](https://img.shields.io/badge/Next.js-16--Canary-black?logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![TailwindCSS v4](https://img.shields.io/badge/TailwindCSS-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![Soroban](https://img.shields.io/badge/Soroban-Rust-orange?logo=rust)](https://soroban.stellar.org/)
-[![MongoDB Sync](https://img.shields.io/badge/MongoDB-Global--Sync-47A248?logo=mongodb)](https://www.mongodb.com/)
+![LivePoll Product Photography](./public/images/hero.png)
 
-![LivePoll Hero Dashboard](./public/images/hero.png)
-
-A professional, production-ready decentralized Live Poll application built for the **Antigravity x Stellar Yellow Belt** competition. Experience high-fidelity glassmorphism UI paired with real-time on-chain event polling and global simulation synchronization.
+LivePoll is a production-grade decentralized application (dApp) developed for the Antigravity x Stellar Yellow Belt professional certification. It provides a high-fidelity interface for real-time polling, utilizing the Stellar network and Soroban smart contracts for transaction finality and data integrity.
 
 ---
 
-## 🚀 Key Features
+## Technical Specifications
 
-- **Dual-Path Architecture**: 
-  - **On-Chain Mode (Soroban)**: Uses the Stellar network as the single source of truth for vote finality.
-  - **Global Simulation Mode (MongoDB)**: Powered by a dedicated backend to allow cross-device, real-time synchronization before your contract is live.
-- **Multi-Wallet Support**: Integrated `StellarWalletsKit v2` supporting Freighter, LOBSTR, xBull, Rabet, and Albedo.
-- **Admin Console**: Dedicated dashboard for contract owners to initialize and configure polls directly from the dApp with global reset capabilities.
+### Architecture
+The platform utilizes a dual-node synchronization architecture:
+- **Blockchain Layer**: Soroban smart contracts manage vote registration and on-chain event emission.
+- **Global Simulation Layer**: A MongoDB-backed synchronization engine provides real-time cross-device updates in pre-production environments.
 
-![Admin Console Mockup](./public/images/admin.png)
-- **Real-Time Dashboards**: Automated polling for Horizon events (and MongoDB simulation) with state-of-the-art animated progress bars.
-- **Robust Security**: Pre-flight balance checks (1.5 XLM minimum) and global address de-duplication to prevent double-voting.
-- **Premium Aesthetics**: Dark mode "Deep Space" theme built on **Tailwind CSS v4** with advanced `@theme` variables, glassmorphism, and Framer Motion choreographies.
+### Tech Stack
+- **Frontend**: Next.js 16 (App Router) with Turbopack orchestration.
+- **Styling**: Tailwind CSS v4 featuring premium glassmorphism and modern CSS-in-JS utilities.
+- **Blockchain**: Stellar SDK integration with multi-wallet support (StellarWalletsKit v2).
+- **Backend**: Node.js API routes with Mongoose persistence for simulation state.
 
----
-
-## 🛠️ Tech Stack
-
-- **Framework**: Next.js 16 (App Router) with Turbopack.
-- **Styling**: Tailwind CSS v4 + `lucide-react`.
-- **Blockchain**: Stellar SDK + Soroban Smart Contracts.
-- **Database**: MongoDB (Mongoose) for global simulation persistence.
-- **Animations**: Framer Motion 12.
+### Key Capabilities
+- **Multi-Wallet Integration**: Full support for Freighter, LOBSTR, xBull, Rabet, and Albedo.
+- **Admin Console**: Unified dashboard for poll initialization, remote configuration, and global state management.
+- **Real-Time Dashboards**: Automated polling of Horizon network events paired with high-performance Framer Motion visualizations.
+- **Robust Security**: Transaction pre-flight balance validation (1.5 XLM threshold) and global unique voter address verification.
 
 ---
 
-## 📦 Getting Started
+## Getting Started
 
-### 1. Prerequisites
-- [Stellar CLI](https://stellar.org/docs/install-stellar-cli)
-- [Node.js 18+](https://nodejs.org/)
-- [MongoDB Account](https://www.mongodb.com/cloud/atlas) (for Simulation Mode)
+### Prerequisites
+- Node.js 18 or higher
+- MongoDB instance (required for Global Simulation Mode)
+- Stellar CLI (optional, for contract deployment)
 
-### 2. Installation
-```bash
-git clone [YOUR_REPO_URL]
-cd livepoll
-npm install
-```
+### Installation
+1. Clone the repository.
+2. Execute `npm install`.
 
-### 3. Setup Environment
-Create a `.env.local` file in the root directory:
+### Environment Configuration
+Create a `.env.local` file with the following variable:
 ```env
-MONGODB_URI=your_mongodb_connection_string
+MONGODB_URI=your_connection_string
 ```
 
-### 4. Setup Contract
-Update `src/lib/constants.ts` with your deployed Contract ID. If this is missing or invalid, the app will gracefully activate **Global Simulation Mode** via MongoDB.
+### Contract Deployment
+Initial poll parameters should be set via the Admin Console. To connect a live contract, update `CONTRACT_ID` in `src/lib/constants.ts`.
 
 ---
 
-## 📜 Smart Contract Deployment
-
-1. **Build the contract**:
-   ```bash
-   cd contract
-   cargo build --target wasm32-unknown-unknown --release
-   ```
-
-2. **Deploy**:
-   ```bash
-   stellar contract deploy \
-     --wasm target/wasm32-unknown-unknown/release/live_poll.wasm \
-     --source [YOUR_IDENTITY] \
-     --network testnet
-   ```
-
-3. **Initialize**: Use the **Admin Console** at the footer of the dApp to initialize your poll.
-
----
-
-## 🏆 Competition Context
-Submitted for the **Antigravity x Stellar Yellow Belt** competition. 
-Focused on delivering UI/UX excellence, robust blockchain integration, and a future-proof tech stack.
+## Professional Certification Context
+This project was submitted as part of the Antigravity x Stellar developer certification series. The implementation focuses on UI/UX excellence, secure blockchain integration, and architectural scalability.
