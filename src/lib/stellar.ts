@@ -8,6 +8,26 @@ import {
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
 import { CONTRACT_ID, RPC_URL, NETWORK_PASSPHRASE } from "./constants";
+import { Transaction, FeeBumpTransaction } from "@stellar/stellar-sdk";
+
+/**
+ * Robustly reconstructs a Transaction object from an XDR string (Base64 or Hex).
+ * This handles variations in how different wallets return signed data.
+ */
+export function reconstructTransaction(xdr: string): Transaction | FeeBumpTransaction {
+  try {
+    // Detect Hex (typically 0-9a-f and always even length)
+    // Base64 can also have numbers/letters but usually has '/' or '+' or ends in '='
+    const isHex = /^[0-9a-fA-F]+$/.test(xdr) && xdr.length % 2 === 0 && !xdr.includes('=');
+    const buffer = isHex ? Buffer.from(xdr, "hex") : Buffer.from(xdr, "base64");
+    
+    console.log(`Reconstructing transaction (Detected format: ${isHex ? 'HEX' : 'BASE64'})`);
+    return TransactionBuilder.fromXDR(buffer, NETWORK_PASSPHRASE);
+  } catch (e) {
+    console.error("XDR Reconstruction Error:", e);
+    throw new Error(`Failed to parse signed transaction: ${e instanceof Error ? e.message : 'Unknown XDR format'}`);
+  }
+}
 
 export const server = new rpc.Server(RPC_URL);
 
@@ -26,7 +46,7 @@ export async function getQuestion(): Promise<string> {
   
   const result = await server.simulateTransaction(
     new TransactionBuilder(
-      new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAAAAAAAAAAAAAAAAAAA", "0"),
+      new Account("GAKF7GXDBJS2MMMVFHE4UNEKXJM3BABM3DQCSTF3JKRKN5WZI4GW4TIV", "0"),
       { fee: "100", networkPassphrase: NETWORK_PASSPHRASE }
     )
     .addOperation(contract.call("get_question"))
@@ -40,12 +60,32 @@ export async function getQuestion(): Promise<string> {
   return "Favorite Blockchain Protocol?";
 }
 
+export async function isPollInitialized(): Promise<boolean> {
+  if (!contract) return false;
+  
+  try {
+    const result = await server.simulateTransaction(
+      new TransactionBuilder(
+        new Account("GAKF7GXDBJS2MMMVFHE4UNEKXJM3BABM3DQCSTF3JKRKN5WZI4GW4TIV", "0"),
+        { fee: "100", networkPassphrase: NETWORK_PASSPHRASE }
+      )
+      .addOperation(contract.call("get_question"))
+      .setTimeout(30)
+      .build()
+    );
+    
+    return rpc.Api.isSimulationSuccess(result);
+  } catch (e) {
+    return false;
+  }
+}
+
 export async function getOptions(): Promise<string[]> {
   if (!contract) return ["Stellar", "Solana", "Ethereum", "Polygon"];
 
   const result = await server.simulateTransaction(
     new TransactionBuilder(
-      new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAAAAAAAAAAAAAAAAAAA", "0"),
+      new Account("GAKF7GXDBJS2MMMVFHE4UNEKXJM3BABM3DQCSTF3JKRKN5WZI4GW4TIV", "0"),
       { fee: "100", networkPassphrase: NETWORK_PASSPHRASE }
     )
     .addOperation(contract.call("get_options"))
@@ -74,7 +114,7 @@ export async function getResults(): Promise<Record<number, number>> {
 
   const result = await server.simulateTransaction(
     new TransactionBuilder(
-      new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAAAAAAAAAAAAAAAAAAA", "0"),
+      new Account("GAKF7GXDBJS2MMMVFHE4UNEKXJM3BABM3DQCSTF3JKRKN5WZI4GW4TIV", "0"),
       { fee: "100", networkPassphrase: NETWORK_PASSPHRASE }
     )
     .addOperation(contract.call("get_results"))
@@ -115,7 +155,7 @@ export async function hasVoted(address: string): Promise<boolean> {
 
   const result = await server.simulateTransaction(
     new TransactionBuilder(
-      new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAAAAAAAAAAAAAAAAAAA", "0"),
+      new Account("GAKF7GXDBJS2MMMVFHE4UNEKXJM3BABM3DQCSTF3JKRKN5WZI4GW4TIV", "0"),
       { fee: "100", networkPassphrase: NETWORK_PASSPHRASE }
     )
     .addOperation(contract.call("has_voted", nativeToScVal(Address.fromString(address))))
@@ -147,7 +187,8 @@ export async function buildVoteTx(voterAddress: string, optionIndex: number) {
   .setTimeout(30)
   .build();
 
-  return tx;
+  const preparedTx = await server.prepareTransaction(tx);
+  return preparedTx;
 }
 
 export async function initializePoll(adminAddress: string, question: string, options: string[]) {
@@ -169,5 +210,42 @@ export async function initializePoll(adminAddress: string, question: string, opt
   .setTimeout(30)
   .build();
 
-  return tx;
+  const preparedTx = await server.prepareTransaction(tx);
+  return preparedTx;
+}
+
+export function parseSorobanError(err: any): string {
+  console.log("Parsing Soroban Error Detail:", err);
+  
+  // Handle standard Error strings
+  if (typeof err === "string") return err;
+  
+  const message = err.message || "";
+  
+  // Specific Contract Errors based on our Rust enum
+  // Error::AlreadyInitialized = 4
+  if (message.includes("Error(Contract, #4)") || message.includes("HostError: Error(Contract, #4)")) {
+    return "Contract is already initialized.";
+  }
+  
+  // Error::AlreadyVoted = 2
+  if (message.includes("Error(Contract, #2)") || message.includes("HostError: Error(Contract, #2)")) {
+    return "You have already voted in this poll.";
+  }
+
+  // Error::InvalidOption = 3
+  if (message.includes("Error(Contract, #3)") || message.includes("HostError: Error(Contract, #3)")) {
+    return "Invalid voting option selected.";
+  }
+
+  // Fallback for simulation failure details
+  if (err.simulation?.error) {
+    return `Simulation failed: ${err.simulation.error}`;
+  }
+
+  if (err.status === "FAILED" && err.errorResultXdr) {
+    return "Transaction failed on-chain. Check your balance or if you already voted.";
+  }
+
+  return err.message || "An unexpected blockchain error occurred.";
 }

@@ -42,6 +42,18 @@ export async function POST(request: Request) {
       $push: { voters: address }
     };
 
+    const updatedPoll = await Poll.findOneAndUpdate(
+      { id: "active_poll" },
+      update,
+      { new: true }
+    );
+
+    return NextResponse.json(updatedPoll);
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to post vote" }, { status: 500 });
+  }
+}
+
 export async function PUT(request: Request) {
   await dbConnect();
   try {

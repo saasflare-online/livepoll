@@ -45,7 +45,16 @@ MONGODB_URI=your_connection_string
 ```
 
 ### Contract Deployment
-Initial poll parameters should be set via the Admin Console. To connect a live contract, update `CONTRACT_ID` in `src/lib/constants.ts`.
+The contract is deployed to the Stellar Testnet.
+- Deployed Contract ID: `CAZY5PGJPRQSAMWIDYLL3VLRPP6VYPC7CXKKM2GPAMF35OLWSGGY2JEO`
+- **Explorer Proof**:
+
+![Stellar Explorer Proof](./public/images/explorer_proof.png)
+
+### Administrative Dashboard
+![Admin Console View](./public/images/admin.png)
+
+Initial poll parameters should be set via the Admin Console. To connect a live contract, update `CONTRACT_ID` in `src/lib/constants.ts`. The implementation includes robust XDR reconstruction to handle various wallet formats (Hex/Base64) and centralized error parsing for contract exceptions.
 
 ---
 

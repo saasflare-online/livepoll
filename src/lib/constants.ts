@@ -1,4 +1,4 @@
-export const CONTRACT_ID = "CAE5S3PQXJ6XZ..." // Placeholder: User will update after deploy
+export const CONTRACT_ID = "CAZY5PGJPRQSAMWIDYLL3VLRPP6VYPC7CXKKM2GPAMF35OLWSGGY2JEO"
 export const NETWORK_PASSPHRASE = "Test SDF Network ; September 2015"
 export const HORIZON_URL = "https://horizon-testnet.stellar.org"
 export const RPC_URL = "https://soroban-testnet.stellar.org"

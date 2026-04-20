@@ -10,6 +10,7 @@ pub enum Error {
     NotInitialized = 1,
     AlreadyVoted = 2,
     InvalidOption = 3,
+    AlreadyInitialized = 4,
 }
 
 #[contracttype]
@@ -27,9 +28,9 @@ pub struct LivePollContract;
 
 #[contractimpl]
 impl LivePollContract {
-    pub fn initialize(env: Env, admin: Address, question: String, options: Vec<String>) {
+    pub fn initialize(env: Env, admin: Address, question: String, options: Vec<String>) -> Result<(), Error> {
         if env.storage().instance().has(&DataKey::Question) {
-            panic!("Already initialized");
+            return Err(Error::AlreadyInitialized);
         }
         
         admin.require_auth();
@@ -43,10 +44,9 @@ impl LivePollContract {
             votes.set(i, 0);
         }
         env.storage().instance().set(&DataKey::Votes, &votes);
-        
-        // Use a persistent map for voters to handle larger scale
-        let voters: Map<Address, bool> = Map::new(&env);
-        env.storage().instance().set(&DataKey::Voters, &voters);
+        env.storage().instance().set(&DataKey::Voters, &Map::<Address, bool>::new(&env));
+
+        Ok(())
     }
 
     pub fn vote(env: Env, voter: Address, option_index: u32) -> Result<(), Error> {

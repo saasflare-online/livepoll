@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { TransactionStage } from "@/lib/constants";
-import { buildVoteTx, server } from "@/lib/stellar";
+import { TransactionStage, NETWORK_PASSPHRASE } from "@/lib/constants";
+import { buildVoteTx, server, parseSorobanError, reconstructTransaction } from "@/lib/stellar";
 import { useWalletKit } from "@/context/WalletProvider";
-import { StellarWalletsKit } from "@creit-tech/stellar-wallets-kit";
+import { StellarWalletsKit, Networks } from "@creit-tech/stellar-wallets-kit";
 
 export function useTransaction() {
   const { isInitialized } = useWalletKit();
@@ -45,10 +45,27 @@ export function useTransaction() {
       let finalHash: string;
       
       if (tx) {
-        // Real transaction flow
-        const { signedTxXdr } = await StellarWalletsKit.signTransaction(tx.toXDR());
-        const submitResult = await server.sendTransaction(signedTxXdr);
-        finalHash = submitResult.hash;
+        console.log("Preparing to sign transaction for address:", address);
+        const { signedTxXdr } = await StellarWalletsKit.signTransaction(tx.toXDR(), {
+          networkPassphrase: NETWORK_PASSPHRASE,
+          address: address
+        });
+        const signedTx = reconstructTransaction(signedTxXdr);
+        const sendResponse = await server.sendTransaction(signedTx);
+        
+        if (sendResponse.status === "PENDING") {
+          const finalStatus = await server.pollTransaction(sendResponse.hash, {
+            attempts: 15,
+            sleepStrategy: () => 2000
+          });
+          
+          if (finalStatus.status !== "SUCCESS") {
+             console.error("Transaction failed during polling:", finalStatus);
+             throw new Error(`Transaction failed with status: ${finalStatus.status}`);
+          }
+        }
+        
+        finalHash = sendResponse.hash;
       } else {
         // Demo simulation flow: Post to global MongoDB API
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -71,15 +88,35 @@ export function useTransaction() {
       return finalHash;
 
     } catch (err: unknown) {
-      console.error(err);
-      const error = err as Error;
-      if (error.message?.includes("cancelled") || error.message?.includes("rejected")) {
-        setError("Transaction cancelled. You rejected the signing request.");
-      } else if (error.message?.includes("Insufficient balance")) {
-        setError(error.message);
-      } else {
-        setError(error.message || "An error occurred during the transaction.");
+      const error = err as any;
+      console.error("DEBUG - Transaction Failed Full Object:", err);
+      console.error("DEBUG - Error Message:", error?.message);
+      console.error("DEBUG - Error Keys:", Object.getOwnPropertyNames(err || {}));
+      
+      let message = "An error occurred during the transaction.";
+      
+      if (error && typeof error === 'object') {
+        // Handle User Rejection / Cancellation
+        if (error.message?.toLowerCase().includes("cancelled") || error.message?.toLowerCase().includes("rejected")) {
+          message = "Transaction cancelled. You rejected the signing request.";
+        } 
+        // Handle explicit local errors (e.g. Insufficient balance)
+        else if (error.message && !error.message.includes("Error(Contract")) {
+          message = error.message;
+        }
+        // Handle Soroban specific errors
+        else {
+          message = parseSorobanError(error);
+        }
+      } else if (typeof err === "string") {
+        message = err;
       }
+      
+      if (message === "{}" || !message || message === "undefined") {
+        message = error?.message || error?.status || "An unknown blockchain error occurred. Please check your wallet for details.";
+      }
+
+      setError(message);
       setStage(TransactionStage.FAILED);
     }
   };
